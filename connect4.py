@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import random
+import copy
 
 
 '''
@@ -36,17 +37,21 @@ class Game:
 
     def play(self, col, realmove):
         for i in range(6):
-            if self.board.state[col][i] == 0:
+            if self.getboard().getstate()[col][i] == 0:
                 if self.board.red:
+                    if realmove:
+                        print("R", col, i)
                     self.board.state[col][i] = 1
                     self.board.red = False
                 else:
+                    if realmove:
+                        print("B", col, i)
                     self.board.state[col][i] = -1
                     self.board.red = True
                 if realmove:
                     self.updatehistory()
                 break
-        return False
+        return
 
     # determines if the column is playable without altering the board state
     def playable(self, col):
@@ -122,13 +127,7 @@ class ReinforcementAI:
         next_boards = {}
         for x in range(7):
             if self.game.playable(x):
-                board = Game.Board()  # we make a copy of the board
-                board.setstate(self.game.board.state)
-                if self.game.board.red != True:
-                    board.setred(False)
-                game_ = Game()
-                game_.setBoard(board)
-                game_.play(x, False)
+                game_=copy.deepcopy(self.game)
                 next_boards[x] = game_.getboard().getstate().tobytes();
         indict = False
         maxscore = float("-inf")
@@ -157,38 +156,34 @@ class ReinforcementAI:
             return 0, nextCol
 
 
-
-
-
-
-
-
 if __name__ == "__main__":
     f = open("C:\\Users\\Pengfei\\Desktop\\C4dict.pickle", 'rb')
     dict = pickle.load(f)  # set the dictionary to what has been saved on file
     game = Game()
     reinforcementAI1 = ReinforcementAI(game, dict)
     reinforcementAI2 = ReinforcementAI(game, dict)
-    while game.winner()==False:
+    while not game.winner():
         game.play(reinforcementAI1.generate_move(), True)
-        game.play(reinforcementAI2.generate_move(), True)
-    if game.winner()==1:
+        if not game.winner():
+            game.play(reinforcementAI2.generate_move(), True)
+
+    if game.winner() == 1:
         print("red won!")
         for h in game.history:
             if h in dict:
                 dict[h] += -1
             else:
                 dict[h] = -1
-    elif winner(game) == -1:  # black won
+    elif game.winner() == -1:  # black won
         print("black won!")
-        for h in history:
+        for h in game.history:
             if h in dict:
                 dict[h] += 1
             else:
                 dict[h] = 1
-    elif winner(game) == 0:  # draw
+    elif game.winner() == 0:  # draw
         print("draw!")
-        for h in history:
+        for h in game.history:
             if h in dict:
                 dict[h] += -.1
             else:
