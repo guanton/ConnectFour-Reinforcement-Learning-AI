@@ -19,8 +19,8 @@ state to a value. If the value is high, then this state is favourable to red win
 
 class Game:
 
-    def __init__(self, history=set()):
-        self.history = history
+    def __init__(self):
+        self.history = set()
         self.board = self.Board()
 
     def setBoard(self, board):
@@ -40,12 +40,14 @@ class Game:
             if self.getboard().getstate()[col][i] == 0:
                 if self.board.red:
                     if realmove:
-                        print("R", col, i)
+                        # print("R", col, i)
+                        pass
                     self.board.state[col][i] = 1
                     self.board.red = False
                 else:
                     if realmove:
-                        print("B", col, i)
+                        # print("B", col, i)
+                        pass
                     self.board.state[col][i] = -1
                     self.board.red = True
                 if realmove:
@@ -84,23 +86,23 @@ class Game:
         # diagonal checks
         for x in range(4):
             for y in range(3):
-                if np.trace(arr[x:x + 4, y:y + 4]) == 4 or np.trace(np.fliplr(arr[x:x + 4, y:y + 4])) == 4:
+                if np.trace(arr[x:x + 4, y:y + 4]) == 4 or np.trace(np.flipud(arr[x:x + 4, y:y + 4])) == 4:
                     return 1
-                elif np.trace(arr[x:x + 4, y:y + 4]) == -4 or np.trace(np.fliplr(arr[x:x + 4, y:y + 4])) == -4:
+                elif np.trace(arr[x:x + 4, y:y + 4]) == -4 or np.trace(np.flipud(arr[x:x + 4, y:y + 4])) == -4:
                     return -1
 
         # draw
-        if np.count_nonzero(game) == 42:
+        if np.count_nonzero(game.board.state) == 42:
             return 0
 
-        return False
+        return None
 
     class Board:
 
         # constructor creates an empty board
-        def __init__(self, red=True, state=np.zeros((7, 6))):
-            self.red = red  # boolean denoting red starts
-            self.state = state
+        def __init__(self):
+            self.red = True
+            self.state = np.zeros((7, 6))
 
         def setstate(self, state):
             self.state = state
@@ -129,69 +131,91 @@ class ReinforcementAI:
             if self.game.playable(x):
                 game_=copy.deepcopy(self.game)
                 next_boards[x] = game_.getboard().getstate().tobytes();
-        indict = False
         maxscore = float("-inf")
         minscore = float("inf")
+        playcolreds = []
+        playcolblacks = []
         for x in next_boards:
-            if next_boards[x] in self.dict:
-                indict = True
-                if maxscore < self.dict[next_boards[x]]:  # look up the game state in dict to get its value
-                    maxscore = self.dict[next_boards[x]]
-                    playcolred = x
-                if minscore > self.dict[next_boards[x]]:
-                    minscore = self.dict[next_boards[x]]
-                    playcolblack = x
-        if indict == True:
-            if self.game.board.red == True:
-                return maxscore, playcolred
+            if next_boards[x] in self.dict or np.flipud(np.frombuffer(next_boards[x]).reshape((7, 6))).tobytes() in self.dict:
+                if next_boards[x] not in self.dict:
+                    next_boards[x] = np.flipud(np.frombuffer(next_boards[x]).reshape((7, 6))).tobytes()
             else:
-                return minscore, playcolblack
+                self.dict[next_boards[x]] = 0
+            if maxscore <= self.dict[next_boards[x]]:  # look up the game state in dict to get its value
+                maxscore = self.dict[next_boards[x]]
+                playcolreds.append(x)
+            if minscore >= self.dict[next_boards[x]]:
+                minscore = self.dict[next_boards[x]]
+                playcolblacks.append(x)
+        if self.game.board.red == True:
+            nextCol = playcolreds[-1]
+            if self.dict[next_boards[nextCol]] > self.dict[next_boards[playcolreds[-2]]]:
+                return maxscore, nextCol
+            else:
+                columns = [playcolreds[-2], nextCol]
+                nextCol = random.choice(columns)
+                return maxscore, nextCol
         else:
-            columns = [0, 1, 2, 3, 4, 5, 6]
-            checker = False
-            while checker == False:
-                nextCol=random.choice(columns)
-                if self.game.playable(nextCol):
-                    checker = True
-            return 0, nextCol
+            nextCol = playcolblacks[-1]
+            # print(self.dict[next_boards[nextCol]])
+            if self.dict[next_boards[nextCol]] < self.dict[next_boards[playcolblacks[-2]]]:
+                return minscore, nextCol
+            else:
+                columns = [playcolblacks[-2], nextCol]
+                nextCol = random.choice(columns)
+                return minscore, nextCol
+
+
+
 
 
 if __name__ == "__main__":
+    n = 1
     f = open("C:\\Users\\Pengfei\\Desktop\\C4dict.pickle", 'rb')
     dict = pickle.load(f)  # set the dictionary to what has been saved on file
-    game = Game()
-    reinforcementAI1 = ReinforcementAI(game, dict)
-    reinforcementAI2 = ReinforcementAI(game, dict)
-    while not game.winner():
-        game.play(reinforcementAI1.generate_move(), True)
-        if not game.winner():
-            game.play(reinforcementAI2.generate_move(), True)
-
-    if game.winner() == 1:
-        print("red won!")
-        for h in game.history:
-            if h in dict:
-                dict[h] += -1
-            else:
-                dict[h] = -1
-    elif game.winner() == -1:  # black won
-        print("black won!")
-        for h in game.history:
-            if h in dict:
-                dict[h] += 1
-            else:
-                dict[h] = 1
-    elif game.winner() == 0:  # draw
-        print("draw!")
-        for h in game.history:
-            if h in dict:
-                dict[h] += -.1
-            else:
-                dict[h] = -.1
-    f = open("C:\\Users\\Pengfei\\Desktop\\C4dict.pickle", 'wb')
-    pickle.dump(dict, f)
-    print(len(dict))
     f.close()
+    for x in range(n):
+
+        game = Game()
+        reinforcementAI1 = ReinforcementAI(game, dict)  # player 1
+
+        reinforcementAI2 = ReinforcementAI(game, dict)  # player 2
+        while game.winner() is None:
+            print(game.board.state)
+            # game.play(reinforcementAI1.generate_move(), True)
+            col = int(input('What column'))
+            if game.playable(col):
+                game.play(col, True)
+            if game.winner() is None:
+                game.play(reinforcementAI2.generate_move(), True)
+
+        if game.winner() == 1:
+            print("red won!")
+            for h in game.history:
+                if h in dict or np.flipud(np.frombuffer(h).reshape((7, 6))).tobytes() in dict:
+                    if h not in dict:
+                        h = np.flipud(np.frombuffer(h).reshape((7, 6))).tobytes()
+                    dict[h] += 1
+                else:
+                    dict[h] = 1
+        elif game.winner() == -1:  # black won
+            print("black won!")
+            for h in game.history:
+                if h in dict or np.flipud(np.frombuffer(h).reshape((7, 6))).tobytes() in dict:
+                    if h not in dict:
+                        h = np.flipud(np.frombuffer(h).reshape((7, 6))).tobytes()
+                    dict[h] += -1
+                else:
+                    dict[h] = -1
+        elif game.winner() == 0:  # draw
+
+            print("draw!")
+
+        print(len(dict))
+        f = open("C:\\Users\\Pengfei\\Desktop\\C4dict.pickle", 'wb')
+        pickle.dump(dict, f)
+        f.close()
+
 
 
 
