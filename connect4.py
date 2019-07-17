@@ -22,6 +22,7 @@ class Game:
     def __init__(self):
         self.history = set()
         self.board = self.Board()
+        self.lastcolplayed = None
 
     def setBoard(self, board):
         self.board = board
@@ -38,6 +39,7 @@ class Game:
     def play(self, col, realmove):
         for i in range(6):
             if self.getboard().getstate()[col][i] == 0:
+                self.lastcolplayed = i
                 if self.board.red:
                     if realmove:
                         # print("R", col, i)
@@ -62,6 +64,18 @@ class Game:
             if self.board.state[col][i] == 0:
                 return True
         return False
+
+    """simplistic evaluator for a board"""
+
+    def evaluatestate(self):
+        if self.winner() == 1:
+            return float("inf")
+        elif self.winner() == -1:
+            return float("-inf")
+        elif self.winner() == 0:
+            return 0
+        elif self.winner() is None:
+            return random.uniform(0, 1)
 
     # determines the winner of the game if there is one (1 for red, -1 for black)
     def winner(self):
@@ -97,6 +111,9 @@ class Game:
 
         return None
 
+
+
+
     class Board:
 
         # constructor creates an empty board
@@ -112,6 +129,8 @@ class Game:
 
         def setred(self, red):
             self.red = red
+
+
 
 
 
@@ -148,22 +167,67 @@ class ReinforcementAI:
                 minscore = self.dict[next_boards[x]]
                 playcolblacks.append(x)
         if self.game.board.red == True:
-            nextCol = playcolreds[-1]
-            if self.dict[next_boards[nextCol]] > self.dict[next_boards[playcolreds[-2]]]:
-                return maxscore, nextCol
-            else:
-                columns = [playcolreds[-2], nextCol]
-                nextCol = random.choice(columns)
-                return maxscore, nextCol
+            return maxscore, random.choice(playcolreds)
+            # nextCol = playcolreds[-1]
+            # if self.dict[next_boards[nextCol]] > self.dict[next_boards[playcolreds[-2]]]:
+            #     return maxscore, nextCol
+            # else:
+            #     columns = [playcolreds[-2], nextCol]
+            #     nextCol = random.choice(columns)
+            #     return maxscore, nextCol
         else:
-            nextCol = playcolblacks[-1]
+            return minscore, random.choice(playcolblacks)
+            # nextCol = playcolblacks[-1]
             # print(self.dict[next_boards[nextCol]])
-            if self.dict[next_boards[nextCol]] < self.dict[next_boards[playcolblacks[-2]]]:
-                return minscore, nextCol
-            else:
-                columns = [playcolblacks[-2], nextCol]
-                nextCol = random.choice(columns)
-                return minscore, nextCol
+            # if self.dict[next_boards[nextCol]] < self.dict[next_boards[playcolblacks[-2]]]:
+            #     return minscore, nextCol
+            # else:
+            #     columns = [playcolblacks[-2], nextCol]
+            #     nextCol = random.choice(columns)
+            #     return minscore, nextCol
+
+class minimaxAI:
+
+    def __init__(self, game):
+        self.game = game
+
+    def generate_move(self):
+        if self.game.board.red:
+            return self.minimax(self.game, 4, True, float("-inf"), float("inf"))[1]
+        else:
+            return self.minimax(self.game, 4, False, float("-inf"), float("inf"))[1]
+
+    def minimax(self, g, depth, maximizingPlayer, alpha, beta):
+        if depth == 0 or not self.game.winner is None:
+            return g.evaluatestate(), g.lastcolplayed
+        if maximizingPlayer:
+            value = float("-inf")
+            for x in range(7):
+                g_ = copy.deepcopy(g)
+                g_.play(x, false)
+                if value < minimax(g_, depth-1, False)[0]:
+                    value = minimax(g_, depth-1, False)[0]
+                    col = x
+                alpha = max(alpha, minimax(g_, depth-1, False)[0])
+                if beta<=alpha:
+                    break
+            return value, col
+        else:
+            value = float("inf")
+            for x in range(7):
+                g_ = copy.deepcopy(g)
+                g_.play(x, false)
+                if value > minimax(g_, depth - 1, True)[0]:
+                    value = minimax(g_, depth - 1, True)[0]
+                    col = x
+                beta = min(beta, minimax(g_, depth - 1, True)[0])
+                if beta <= alpha:
+                    break
+            return value, col
+
+
+
+
 
 
 
@@ -177,17 +241,18 @@ if __name__ == "__main__":
     for x in range(n):
 
         game = Game()
-        reinforcementAI1 = ReinforcementAI(game, dict)  # player 1
-
-        reinforcementAI2 = ReinforcementAI(game, dict)  # player 2
+        AI1 = ReinforcementAI(game, dict)  # player 1
+        AI2 = minimaxAI(game)  # player 2
         while game.winner() is None:
+
+            game.play(AI1.generate_move(), True)
+            # col = int(input('What column'))
+            # if game.playable(col):
+            #     game.play(col, True)
+            # if game.winner() is None:
+            #     game.play(reinforcementAI2.generate_move(), True)
+            game.play(AI2.generate_move(), True)
             print(game.board.state)
-            # game.play(reinforcementAI1.generate_move(), True)
-            col = int(input('What column'))
-            if game.playable(col):
-                game.play(col, True)
-            if game.winner() is None:
-                game.play(reinforcementAI2.generate_move(), True)
 
         if game.winner() == 1:
             print("red won!")
