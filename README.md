@@ -7,4 +7,4 @@ the maximizing player (w/l/o/g assume red) winning the game. As the number of ga
 
 With the dictionary, all that remains to be done is to select the column that produces the best board state for the AI player. I chose python primarily because of pickling being far superior to equivalents in Java for storing and reading objects from a file.
 
-I am currently building the dictionary by playing two AIs against each other thousands of times. Once I am done preliminary testing, I will add functionality that supports interactive Human vs AI games. I will also test my reinforcement learning AI against my minimax AI.
+I am currently building the dictionary by playing two AIs against each other thousands of times. Once I am done preliminary testing, I will add functionality that supports interactive Human vs AI games. I will also test my reinforcement learning AI against my minimax AI. Update: After 20000+ games, my pickle file has exceeded 100mb, but the AI is still performing quite poorly in games.
